@@ -211,7 +211,7 @@ def render_by_subregions(map_x, map_y, mask, img_loader, fileid=None,  **kwargs)
     return imgt
 
 
-def masked_dog_filter(img, sigma, mask=None, signed=True):
+def masked_dog_filter_yw(img, sigma, mask=None, signed=True):
     """
     apply Difference of Gaussian filter to an image. if a mask is provided, make
     sure any signal outside the mask will not bleed out.
@@ -238,6 +238,51 @@ def masked_dog_filter(img, sigma, mask=None, signed=True):
         imgf = np.abs(imgf)
     return imgf
 
+def masked_dog_filter(img, sigma, mask=None, signed=True):
+    """
+    GPU replacement for masked_dog_filter
+    Yuelong's docstring says that `img` is C x H x W `ndarray`
+    I think he means that it can be either N x H x W or H x W. (HSS)
+    original name: masked_dog_filter_torch
+    """
+    sigma0, sigma1 = sigma, 2 * sigma
+    if not np.issubdtype(img.dtype, np.floating):
+        img = img.astype(np.float32)
+    img0f = gaussian_filter_torch(img, sigma0)
+    img1f = gaussian_filter_torch(img, sigma1)
+    imgf = img0f - img1f
+    if (mask is not None) and (not np.all(mask, axis=None)):
+        mask_img = img.ptp() * (mask == 0)
+        mask0f = gaussian_filter_torch(mask_img, sigma0)
+        mask1f = gaussian_filter_torch(mask_img, sigma1)
+        maskf = np.maximum(mask0f, mask1f)
+        imgf_a = np.abs(imgf)
+        imgf_a = (imgf_a - maskf).clip(0, None)
+        imgf = imgf_a * np.sign(imgf)
+    if not signed:
+        imgf = np.abs(imgf)
+    return imgf
+
+def gaussian_filter_torch(img, sigma):
+    kernel = torch.tensor(create_1d_gaussian_kernel(sigma), dtype = torch.float32).cuda()
+    kernel1 = kernel[None, None, None, :]
+    kernel2 = kernel[None, None, :, None]
+    input = torch.tensor(img, dtype = torch.float32).unsqueeze(-3).cuda()    # add channel dimension, works whether img is H x W or N x H x W
+    out = F.conv2d(input, kernel1, padding = 'same')
+    out = F.conv2d(out, kernel2, padding = 'same')
+    return out.squeeze(-3).cpu().numpy()
+
+def create_1d_gaussian_kernel(sigma, dtype = np.float32):
+    """
+    default parameters from documentation of scipy.ndimage.gaussian_filter1d
+    """
+    truncate = 4
+    radius = round(truncate * sigma)
+    size = 2*radius + 1
+    x = np.linspace(-radius, radius, size)
+    kernel = (1/(sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * (x / sigma)**2)
+    kernel = kernel.astype(dtype)
+    return kernel / np.sum(kernel)
 
 def divide_bbox(bbox, **kwargs):
     xmin, ymin, xmax, ymax = bbox
