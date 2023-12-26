@@ -3,6 +3,7 @@ import cv2
 import importlib
 import os
 
+import torch
 import numpy as np
 from scipy import sparse
 from scipy.ndimage import gaussian_filter1d
