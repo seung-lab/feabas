@@ -1,4 +1,4 @@
-working_directory: ./work_dir   # project specific working directory
+working_directory: /scratch/zhihaozheng/mec/feabas-mec-stitching   # project specific working directory
 cpu_budget: null      # CPU cores to use (estimated target only, no hard control)
 
 full_resolution: 4  # in nanometers
