@@ -643,7 +643,7 @@ class SLM:
             targt_gear = kwargs.get('target_gear', const.MESH_GEAR_MOVING)
             batch_num_matches = kwargs.get('batch_num_matches', None)
             if batch_num_matches is None:
-                batch_num_matches = self.num_matches / 10
+                batch_num_matches = self.num_matches / 15
             dof = self.degree_of_freedom
             Cs_lft = sparse.csr_matrix((dof, dof), dtype=np.float32)
             Cs_rht = np.zeros(dof, dtype=np.float32)
